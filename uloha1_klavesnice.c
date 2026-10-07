@@ -104,7 +104,7 @@ void main(void)
     }
 
 }
-/* #include <xc.h>
+ #include <xc.h>
 #include <stdint.h>
 
 #define _XTAL_FREQ 8000000
@@ -180,4 +180,4 @@ void main(void)
 
         __delay_ms(10); // debounce
     }
-}*/
+}
