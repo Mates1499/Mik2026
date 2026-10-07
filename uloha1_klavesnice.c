@@ -102,4 +102,82 @@ void main(void)
         }
         __delay_ms(10);                     // zároveň jednoduchý debounce
     }
+
 }
+/* #include <xc.h>
+#include <stdint.h>
+
+#define _XTAL_FREQ 8000000
+
+uint8_t radek, sloupec, klavesa;
+
+void main(void)
+{
+    ANSELA = 0x00;
+    ANSELB = 0x00;
+    ANSELC = 0x00;
+    ANSELD = 0x00;
+
+    TRISA  = 0x00;
+    TRISB  = 0b11110000;    // RB7–RB4 vstupy (řádky), RB3–RB0 výstupy (sloupce)
+    TRISC  = 0x00;          // LED
+    TRISD  = 0x00;          // LED
+
+    LATA   = 0x00;
+    LATB   = 0b00001111;    // všechny sloupce v log. 1
+    LATC   = 0x00;
+    LATD   = 0x00;
+
+    while (1)
+    {
+        // 1) Kontrola, zda je stisknuta jakákoliv klávesa
+        if (PORTB & 0xF0)
+        {
+            // Detekce stisknutého řádku (RB4 = 0, RB5 = 1, RB6 = 2, RB7 = 3)
+            if      (PORTBbits.RB4) radek = 0;
+            else if (PORTBbits.RB5) radek = 1;
+            else if (PORTBbits.RB6) radek = 2;
+            else                    radek = 3;
+
+            // 2) Zjištění sloupce: aktivujeme vždy pouze JEDEN sloupec
+            sloupec = 0;
+            for (uint8_t c = 0; c < 4; c++)
+            {
+                LATB = (uint8_t)(1 << c);   // aktivní pouze sloupec RB0, RB1, RB2 nebo RB3
+                __delay_ms(1);              // ustálení napětí
+
+                // Pokud na daném řádku stále čteme log. 1, máme správný sloupec
+                if (PORTB & (1 << (radek + 4)))
+                {
+                    sloupec = c;
+                    break;
+                }
+            }
+
+            LATB = 0b00001111;              // vrátit log. 1 na všechny sloupce
+
+            // 3) Výpočet indexu klávesy (0 až 15)
+            klavesa = (radek * 4) + sloupec;
+
+            // 4) Rozsvícení odpovídající LED
+            LATC = 0x00;
+            LATD = 0x00;
+
+            if (klavesa < 8)
+            {
+                LATC = (uint8_t)(1 << klavesa);         // Řádek 0 a 1 -> RC0 až RC7
+            }
+            else
+            {
+                LATD = (uint8_t)(1 << (klavesa - 8));   // Řádek 2 a 3 -> RD0 až RD7
+            }
+        }
+        else
+        {
+            LATC = 0x00;
+            LATD = 0x00;
+        }
+
+        __delay_ms(10); // debounce
+    }
+}*/
