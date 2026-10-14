@@ -57,6 +57,11 @@ void main(void)
     ANSELB = 0x00;
     TRISB  = 0xFF;
 
+    // Connect INT pins to RB0, RB1, RB2 (explicitly, to be sure)
+    INT0PPS = 0x08;         // RB0
+    INT1PPS = 0x09;         // RB1
+    INT2PPS = 0x0A;         // RB2
+
     // Timer0
     T0CON1 = 0b01000101;    // Fosc/4, synchronized, prescaler 1:32
     T0CON0 = 0b10010000;    // Timer0 ON, 16-bit, postscaler 1:1
