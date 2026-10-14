@@ -2,43 +2,39 @@
 #include <stdint.h>
 #include <pic18f47k40.h>
 
-// Obsluha přerušení VYŠŠÍ priority
+// Obsluha přerušení VYŠŠÍ priority (vektor 0x0008)
 void __interrupt(high_priority) HighIsr(void)
 {
-    // Přerušení od časovače TMR0
     if (PIR0bits.TMR0IF && PIE0bits.TMR0IE)
     {
-        LATDbits.LATD0 = ~LATDbits.LATD0; // Blikání LED D0 každou sekundu
-        PIR0bits.TMR0IF = 0;              // Smazání příznaku TMR0
+        LATDbits.LATD0 = ~LATDbits.LATD0; // Blikání LED D0 (1 s)
+        PIR0bits.TMR0IF = 0;
     }
 
-    // Přerušení od tlačítka INT0 (vyšší priorita)
     if (PIR0bits.INT0IF && PIE0bits.INT0IE)
     {
-        LATDbits.LATD1 = ~LATDbits.LATD1; // Okamžitá změna stavu LED D1
-        PIR0bits.INT0IF = 0;              // Smazání příznaku INT0
+        LATDbits.LATD1 = ~LATDbits.LATD1; // Okamžitá reakce na RB0
+        PIR0bits.INT0IF = 0;
     }
 }
 
-// Obsluha přerušení NIŽŠÍ priority
+// Obsluha přerušení NIŽŠÍ priority (vektor 0x0018)
 void __interrupt(low_priority) LowIsr(void)
 {
-    // Přerušení od tlačítka INT1 (nižší priorita)
     if (PIR0bits.INT1IF && PIE0bits.INT1IE)
     {
-        LATDbits.LATD2 = 1;               // Rozsvícení LED D2 po dobu čekání
-        __delay_ms(5000);                 // Zpoždění 5 s (během něj lze vyvolat INT0 a TMR0!)
-        LATDbits.LATD2 = 0;               // Zhasnutí LED D2
-        PIR0bits.INT1IF = 0;              // Smazání příznaku INT1
+        LATDbits.LATD2 = 1;               // Rozsvítí LED D2
+        __delay_ms(5000);                 // Čeká 5 s
+        LATDbits.LATD2 = 0;               // Zhasne LED D2
+        PIR0bits.INT1IF = 0;
     }
 
-    // Přerušení od tlačítka INT2 (nižší priorita)
     if (PIR0bits.INT2IF && PIE0bits.INT2IE)
     {
-        LATDbits.LATD3 = 1;               // Rozsvícení LED D3 po dobu čekání
-        __delay_ms(5000);                 // Zpoždění 5 s
-        LATDbits.LATD3 = 0;               // Zhasnutí LED D3
-        PIR0bits.INT2IF = 0;              // Smazání příznaku INT2
+        LATDbits.LATD3 = 1;               // Rozsvítí LED D3
+        __delay_ms(5000);                 // Čeká 5 s
+        LATDbits.LATD3 = 0;               // Zhasne LED D3
+        PIR0bits.INT2IF = 0;
     }
 }
 
@@ -47,51 +43,50 @@ void main(void)
     // 1. Nastavení PORTD (LED) jako digitální výstup
     ANSELD = 0x00;
     TRISD = 0x00;
-    LATD = 0x00;                          // Na začátku všechny LED zhasnuté
+    LATD = 0x00;
 
-    // 2. Nastavení PORTB (Tlačítka RB0, RB1, RB2) jako digitální vstupy
-    ANSELB = 0x00;                        // Digitální vstupy na PORTB
-    TRISBbits.TRISB0 = 1;                 // INT0
-    TRISBbits.TRISB1 = 1;                 // INT1
-    TRISBbits.TRISB2 = 1;                 // INT2
+    // 2. Nastavení PORTB (RB0, RB1, RB2) jako digitální vstupy + Pull-Up
+    ANSELB = 0x00;                        // Digitální vstupy
+    TRISB |= 0x07;                        // RB0, RB1, RB2 jako vstupy
+    WPUB |= 0x07;                         // Zapnutí interních pull-up rezistorů na RB0, RB1, RB2
 
-    // 3. Nastavení Timer0 na cca 1 s (Fosc/4, synchronní, 16-bit, prescaler 1:32)
-    T0CON1 = 0b01000101;                  // CS = 010 (Fosc/4), ASYNC = 0, CKPS = 0101 (1:32)
-    T0CON0 = 0b10010000;                  // EN = 1, 16BIT = 1, OUTPS = 0000 (1:1)
+    // Explicitní namapování PPS na RB0, RB1, RB2 (pro jistotu)
+    INT0PPS = 0x08;                       // RB0 -> INT0
+    INT1PPS = 0x09;                       // RB1 -> INT1
+    INT2PPS = 0x0A;                       // RB2 -> INT2
 
-    // 4. Nastavení hran pro tlačítka INT0, INT1, INT2 (0 = sestupná hrana, 1 = náběžná)
+    // 3. Nastavení Timer0 na 1 s
+    T0CON1 = 0b01000101;                  // Fosc/4, sync, prescaler 1:32
+    T0CON0 = 0b10010000;                  // TMR0 ON, 16-bit, postscaler 1:1
+
+    // 4. Nastavení hrany (0 = při stisku do GND, 1 = při stisku do VCC)
     INTCONbits.INT0EDG = 0;
     INTCONbits.INT1EDG = 0;
     INTCONbits.INT2EDG = 0;
 
     // 5. Nastavení priorit přerušení
-    INTCONbits.IPEN = 1;                  // Povolení priorit přerušení (Interrupt Priority Enable)
-    
-    IPR0bits.TMR0IP = 1;                  // Timer0 -> Vyšší priorita (1)
-    IPR0bits.INT0IP = 1;                  // INT0   -> Vyšší priorita (1)
-    IPR0bits.INT1IP = 0;                  // INT1   -> Nižší priorita (0)
-    IPR0bits.INT2IP = 0;                  // INT2   -> Nižší priorita (0)
+    INTCONbits.IPEN = 1;                  // Povolení dvou úrovní priorit
+    IPR0bits.TMR0IP = 1;                  // TMR0 = vysoká priorita
+    IPR0bits.INT0IP = 1;                  // INT0 = vysoká priorita
+    IPR0bits.INT1IP = 0;                  // INT1 = nízká priorita
+    IPR0bits.INT2IP = 0;                  // INT2 = nízká priorita
 
-    // 6. Vynulování příznaků přerušení (PIR0)
+    // 6. Smazání příznaků a povolení přerušení
     PIR0bits.TMR0IF = 0;
     PIR0bits.INT0IF = 0;
     PIR0bits.INT1IF = 0;
     PIR0bits.INT2IF = 0;
 
-    // 7. Povolení jednotlivých zdrojů přerušení (PIE0)
     PIE0bits.TMR0IE = 1;
     PIE0bits.INT0IE = 1;
     PIE0bits.INT1IE = 1;
     PIE0bits.INT2IE = 1;
 
-    // 8. Globální povolení přerušení (pro vyšší i nižší prioritu)
-    INTCONbits.GIEH = 1;                  // Povolení přerušení s vyšší prioritou
-    INTCONbits.GIEL = 1;                  // Povolení přerušení s nižší prioritou
+    // 7. Globální povolení přerušení (vysoké i nízké priority)
+    INTCONbits.GIEH = 1;
+    INTCONbits.GIEL = 1;
 
     while (1)
     {
-        // Nekonečná smyčka
     }
-
-    return;
 }
